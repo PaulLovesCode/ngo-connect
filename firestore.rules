@@ -1,0 +1,155 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: volunteers
+// Document ID: {uid}
+// Fields:
+//   - uid: string (required)
+//   - name: string (required)
+//   - email: string (required, email format)
+//   - skills: list of strings (required)
+//   - role: string (required, 'volunteer' or 'admin')
+//   - gender: string (optional, 'male', 'female', 'other', 'prefer_not_to_say')
+//   - age: number (optional)
+//   - address: string (optional)
+//   - mobile: string (optional)
+//   - yearsVolunteering: number (optional)
+//
+// Collection: emergencies
+// Document ID: {emergencyId}
+// Fields:
+//   - reporterUid: string (required)
+//   - reporterName: string (optional)
+//   - description: string (required, max 2000 chars)
+//   - location: string (required, max 500 chars)
+//   - urgency: string (required, 'low', 'medium', 'high', 'critical')
+//   - status: string (required, 'pending', 'assigned', 'resolved')
+//   - requiredSkills: list of strings (optional)
+//   - createdAt: timestamp (required)
+//   - processedByAi: bool (optional)
+//
+// Collection: tasks
+// Document ID: {taskId}
+// Fields:
+//   - emergencyId: string (required)
+//   - assignedVolunteerUid: string (required)
+//   - status: string (required, 'open', 'in-progress', 'completed')
+//   - createdAt: timestamp (required)
+//
+// Collection: feedback
+// Document ID: {feedbackId}
+// Fields:
+//   - userId: string (required)
+//   - userName: string (required)
+//   - type: string (required, 'issue', 'improvement', 'other')
+//   - message: string (required, max 5000 chars)
+//   - createdAt: timestamp (required)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/volunteers/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "notpixeledits7@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidVolunteer(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'skills', 'role']) &&
+             data.uid == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.skills is list &&
+             data.role in ['volunteer', 'admin'] &&
+             (!('gender' in data) || data.gender in ['male', 'female', 'other', 'prefer_not_to_say']) &&
+             (!('age' in data) || (data.age is number && data.age >= 0 && data.age < 150)) &&
+             (!('address' in data) || (data.address is string && data.address.size() < 500)) &&
+             (!('mobile' in data) || (data.mobile is string && data.mobile.size() < 20)) &&
+             (!('yearsVolunteering' in data) || (data.yearsVolunteering is number && data.yearsVolunteering >= 0));
+    }
+
+    function isValidEmergency(data) {
+      return data.keys().hasAll(['reporterUid', 'description', 'location', 'urgency', 'status', 'createdAt']) &&
+             data.description is string && data.description.size() > 0 && data.description.size() < 2000 &&
+             data.location is string && data.location.size() > 0 && data.location.size() < 500 &&
+             data.urgency in ['low', 'medium', 'high', 'critical'] &&
+             data.status in ['pending', 'assigned', 'resolved'] &&
+             data.createdAt is timestamp &&
+             (!('assignedVolunteerUid' in data) || data.assignedVolunteerUid is string);
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['emergencyId', 'assignedVolunteerUid', 'status', 'createdAt']) &&
+             data.emergencyId is string &&
+             data.assignedVolunteerUid is string &&
+             data.status in ['open', 'in-progress', 'completed'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidFeedback(data) {
+      return data.keys().hasAll(['userId', 'userName', 'type', 'message', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.userName is string && data.userName.size() > 0 &&
+             data.type in ['issue', 'improvement', 'other'] &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 5000 &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /volunteers/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(uid) && isValidVolunteer(request.resource.data) && (request.resource.data.role == 'volunteer' || isAdmin());
+      allow update: if isAuthenticated() && isOwner(uid) && isValidVolunteer(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /emergencies/{emergencyId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidEmergency(request.resource.data) && request.resource.data.reporterUid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (resource.data.reporterUid == request.auth.uid && isValidEmergency(request.resource.data) && request.resource.data.reporterUid == resource.data.reporterUid) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'assignedVolunteerUid']) && request.resource.data.status == 'assigned' && resource.data.status == 'pending' && request.resource.data.assignedVolunteerUid == request.auth.uid) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'resolved' && resource.data.assignedVolunteerUid == request.auth.uid)
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (isAdmin() || (request.resource.data.assignedVolunteerUid == request.auth.uid && isValidTask(request.resource.data)));
+      allow update: if isAuthenticated() && (isAdmin() || (resource.data.assignedVolunteerUid == request.auth.uid && isValidTask(request.resource.data)));
+      allow delete: if isAdmin();
+    }
+
+    match /feedback/{feedbackId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && isValidFeedback(request.resource.data);
+    }
+  }
+}
