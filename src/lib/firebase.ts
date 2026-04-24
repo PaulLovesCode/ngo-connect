@@ -31,8 +31,13 @@ export interface FirestoreErrorInfo {
   }
 }
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const finalFirebaseConfig = {
+  ...firebaseConfig,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey
+};
+
+const app = initializeApp(finalFirebaseConfig);
+export const db = getFirestore(app, finalFirebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {

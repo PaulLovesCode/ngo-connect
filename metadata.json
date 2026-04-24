@@ -1,5 +1,0 @@
-{
-  "name": "NGO Community Connect",
-  "description": "A platform for NGO volunteers to report community emergencies, featuring AI-powered OCR and intelligent task prioritization.",
-  "requestFramePermissions": ["camera"]
-}

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, Timestamp, doc, getDocs, updateDoc } from 'firebase/firestore';
 import { Emergency, Volunteer, Task, Urgency } from '../types';
 import { analyzeEmergency, ocrImage } from '../lib/gemini';
-import { Camera, FileText, MapPin, AlertCircle, CheckCircle, Clock, Send, Upload, Loader2, Calendar as CalendarIcon, X } from 'lucide-react';
+import { Camera, FileText, MapPin, AlertCircle, CheckCircle, Clock, Send, Upload, Loader2, Calendar as CalendarIcon, X, Zap, TrendingUp, Users, Star } from 'lucide-react';
 import { motion, AnimatePresence, Variants } from 'motion/react';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
@@ -13,6 +13,7 @@ import { FeedbackModal } from './FeedbackModal';
 import { Profile } from './Profile';
 import { Calendar } from './Calendar';
 import { Settings } from './Settings';
+import { findMatches, findBestMatch, checkBackendHealth, type VolunteerMatch, type MatchResponse } from '../lib/matchmaking';
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -54,7 +55,19 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
   const [showCalendar, setShowCalendar] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [backendOnline, setBackendOnline] = useState(false);
+  const [smartMatchResults, setSmartMatchResults] = useState<Record<string, VolunteerMatch[]>>({});
+  const [loadingMatches, setLoadingMatches] = useState<Record<string, boolean>>({});
+  const [showSmartMatch, setShowSmartMatch] = useState<string | null>(null);
+  const [allVolunteers, setAllVolunteers] = useState<Volunteer[]>([]);
   const [currentView, setCurrentView] = useState<'dashboard' | 'profile' | 'settings'>('dashboard');
+
+  // Check backend health on mount
+  useEffect(() => {
+    checkBackendHealth().then(setBackendOnline);
+    const interval = setInterval(() => checkBackendHealth().then(setBackendOnline), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const q = query(collection(db, 'emergencies'));
@@ -69,9 +82,17 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
       setMyTasks(data);
     });
 
+    // Fetch all volunteers for matchmaking
+    const vq = query(collection(db, 'volunteers'));
+    const vUnsubscribe = onSnapshot(vq, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as Volunteer));
+      setAllVolunteers(data);
+    });
+
     return () => {
       unsubscribe();
       tUnsubscribe();
+      vUnsubscribe();
     };
   }, [userProfile.uid]);
 
@@ -139,33 +160,92 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
     }
   };
 
-  const autoAssignTask = async (emergencyId: string, requiredSkills: string[]) => {
+  // Fetch smart match results from the backend
+  const fetchSmartMatches = useCallback(async (emergencyId: string, emergency: Emergency) => {
+    if (!backendOnline) return;
+    
+    setLoadingMatches(prev => ({ ...prev, [emergencyId]: true }));
     try {
-      const volunteersSnap = await getDocs(collection(db, 'volunteers'));
-      const volunteers = volunteersSnap.docs.map(doc => doc.data() as Volunteer);
+      // Get active task counts
+      const tasksSnap = await getDocs(query(collection(db, 'tasks'), where('status', 'in', ['open', 'in-progress'])));
+      const taskCounts: Record<string, number> = {};
+      tasksSnap.docs.forEach(d => {
+        const uid = d.data().assignedVolunteerUid;
+        taskCounts[uid] = (taskCounts[uid] || 0) + 1;
+      });
 
-      // Find volunteers with matching skills
-      const matches = volunteers.filter(v => 
-        v.skills.some(skill => 
-          requiredSkills.some(reqSkill => skill.toLowerCase().includes(reqSkill.toLowerCase()))
-        )
+      const response = await findMatches(
+        { id: emergencyId, requiredSkills: emergency.requiredSkills || [], urgency: emergency.urgency },
+        allVolunteers.map(v => ({ uid: v.uid, name: v.name, email: v.email, skills: v.skills, yearsVolunteering: v.yearsVolunteering })),
+        taskCounts,
+        { limit: 5, qualifiedOnly: true }
       );
 
-      if (matches.length > 0) {
-        // Assign to the first match
-        const assigned = matches[0];
-        await addDoc(collection(db, 'tasks'), {
-          emergencyId,
-          assignedVolunteerUid: assigned.uid,
-          status: 'open',
-          createdAt: Timestamp.now()
+      setSmartMatchResults(prev => ({ ...prev, [emergencyId]: response.matches }));
+    } catch (err) {
+      console.error('Smart match failed:', err);
+    } finally {
+      setLoadingMatches(prev => ({ ...prev, [emergencyId]: false }));
+    }
+  }, [backendOnline, allVolunteers]);
+
+  // Backend-driven auto-assign: finds the best volunteer via the backend scoring engine
+  const autoAssignTask = async (emergencyId: string, requiredSkills: string[]) => {
+    try {
+      if (backendOnline && allVolunteers.length > 0) {
+        // Get active task counts
+        const tasksSnap = await getDocs(query(collection(db, 'tasks'), where('status', 'in', ['open', 'in-progress'])));
+        const taskCounts: Record<string, number> = {};
+        tasksSnap.docs.forEach(d => {
+          const uid = d.data().assignedVolunteerUid;
+          taskCounts[uid] = (taskCounts[uid] || 0) + 1;
         });
 
-        // Update emergency status
-        await updateDoc(doc(db, 'emergencies', emergencyId), {
-          status: 'assigned',
-          assignedVolunteerUid: assigned.uid
-        });
+        const emergency = emergencies.find(e => e.id === emergencyId);
+        if (!emergency) return;
+
+        const response = await findBestMatch(
+          { requiredSkills, urgency: emergency.urgency },
+          allVolunteers.map(v => ({ uid: v.uid, name: v.name, email: v.email, skills: v.skills, yearsVolunteering: v.yearsVolunteering })),
+          taskCounts
+        );
+
+        if (response.match) {
+          await addDoc(collection(db, 'tasks'), {
+            emergencyId,
+            assignedVolunteerUid: response.match.volunteerId,
+            status: 'open',
+            createdAt: Timestamp.now(),
+            matchScore: response.match.totalScore,
+          });
+
+          await updateDoc(doc(db, 'emergencies', emergencyId), {
+            status: 'assigned',
+            assignedVolunteerUid: response.match.volunteerId,
+          });
+        }
+      } else {
+        // Fallback: basic client-side matching when backend is offline
+        const volunteersSnap = await getDocs(collection(db, 'volunteers'));
+        const volunteers = volunteersSnap.docs.map(doc => doc.data() as Volunteer);
+        const matches = volunteers.filter(v => 
+          v.skills.some(skill => 
+            requiredSkills.some(reqSkill => skill.toLowerCase().includes(reqSkill.toLowerCase()))
+          )
+        );
+        if (matches.length > 0) {
+          const assigned = matches[0];
+          await addDoc(collection(db, 'tasks'), {
+            emergencyId,
+            assignedVolunteerUid: assigned.uid,
+            status: 'open',
+            createdAt: Timestamp.now()
+          });
+          await updateDoc(doc(db, 'emergencies', emergencyId), {
+            status: 'assigned',
+            assignedVolunteerUid: assigned.uid
+          });
+        }
       }
     } catch (err) {
       console.error("Auto-assign failed:", err);
@@ -244,10 +324,19 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
           <h1 className="text-xl font-bold text-gray-900 capitalize">
             {currentView}
           </h1>
-          <div className="flex items-center space-x-4">
-             <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-wider">
-               {userProfile.role}
-             </span>
+          <div className="flex items-center space-x-2">
+              <span className={cn(
+                "flex items-center px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                backendOnline 
+                  ? "bg-emerald-50 text-emerald-600" 
+                  : "bg-amber-50 text-amber-600"
+              )}>
+                <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", backendOnline ? "bg-emerald-500" : "bg-amber-500")} />
+                {backendOnline ? 'Engine Online' : 'Engine Offline'}
+              </span>
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-wider">
+                {userProfile.role}
+              </span>
           </div>
         </header>
 
@@ -588,22 +677,139 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
                       </div>
 
                       {emergency.requiredSkills && emergency.requiredSkills.length > 0 && (
-                        <div className="flex flex-wrap gap-2 items-center justify-between">
-                          <div className="flex flex-wrap gap-2">
-                            {emergency.requiredSkills.map(skill => (
-                              <span key={skill} className="px-2.5 py-1 bg-white border border-emerald-100 text-emerald-600 rounded-lg text-[10px] font-bold uppercase tracking-tight shadow-sm">
-                                {skill}
-                              </span>
-                            ))}
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-2 items-center justify-between">
+                            <div className="flex flex-wrap gap-2">
+                              {emergency.requiredSkills.map(skill => (
+                                <span key={skill} className="px-2.5 py-1 bg-white border border-emerald-100 text-emerald-600 rounded-lg text-[10px] font-bold uppercase tracking-tight shadow-sm">
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              {backendOnline && userProfile.role === 'admin' && (
+                                <motion.button
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => {
+                                    if (showSmartMatch === emergency.id) {
+                                      setShowSmartMatch(null);
+                                    } else {
+                                      setShowSmartMatch(emergency.id);
+                                      fetchSmartMatches(emergency.id, emergency);
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-md flex items-center"
+                                >
+                                  <Zap size={14} className="mr-1.5" />
+                                  Smart Match
+                                </motion.button>
+                              )}
+                              <motion.button
+                                whileHover={{ scale: 1.05, boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => handlePickUpTask(emergency.id)}
+                                className="px-6 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-md"
+                              >
+                                Pick Up Task
+                              </motion.button>
+                            </div>
                           </div>
-                          <motion.button
-                            whileHover={{ scale: 1.05, boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => handlePickUpTask(emergency.id)}
-                            className="px-6 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-md"
-                          >
-                            Pick Up Task
-                          </motion.button>
+
+                          {/* Smart Match Results Panel */}
+                          <AnimatePresence>
+                            {showSmartMatch === emergency.id && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-5 border border-indigo-100">
+                                  <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-sm font-bold text-indigo-900 flex items-center">
+                                      <TrendingUp size={16} className="mr-2 text-indigo-600" />
+                                      Backend Match Rankings
+                                    </h4>
+                                    <button onClick={() => setShowSmartMatch(null)} className="text-indigo-400 hover:text-indigo-700">
+                                      <X size={16} />
+                                    </button>
+                                  </div>
+                                  
+                                  {loadingMatches[emergency.id] ? (
+                                    <div className="flex items-center justify-center py-6">
+                                      <Loader2 className="animate-spin text-indigo-500 mr-2" size={20} />
+                                      <span className="text-sm text-indigo-600 font-medium">Computing matches...</span>
+                                    </div>
+                                  ) : smartMatchResults[emergency.id]?.length === 0 ? (
+                                    <p className="text-sm text-indigo-500 text-center py-4">No qualified volunteers found.</p>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      {smartMatchResults[emergency.id]?.map((match, idx) => (
+                                        <motion.div
+                                          key={match.volunteerId}
+                                          initial={{ opacity: 0, x: -10 }}
+                                          animate={{ opacity: 1, x: 0 }}
+                                          transition={{ delay: idx * 0.1 }}
+                                          className="flex items-center justify-between p-3 bg-white rounded-xl border border-indigo-50 shadow-sm"
+                                        >
+                                          <div className="flex items-center space-x-3">
+                                            <div className={cn(
+                                              "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black",
+                                              idx === 0 ? "bg-amber-100 text-amber-700" :
+                                              idx === 1 ? "bg-gray-100 text-gray-700" :
+                                              idx === 2 ? "bg-orange-100 text-orange-700" :
+                                              "bg-indigo-50 text-indigo-600"
+                                            )}>
+                                              #{match.rank}
+                                            </div>
+                                            <div>
+                                              <p className="text-sm font-bold text-gray-900">{match.volunteerName}</p>
+                                              <p className="text-[10px] text-gray-500">
+                                                Skills: {match.breakdown.skill.matchedSkills.map(s => s.volunteerSkill).join(', ') || 'None'}
+                                                {match.breakdown.skill.matchedSkills.length > 0 && (
+                                                  <span className="ml-1 text-emerald-600">({match.breakdown.skill.coverage}% coverage)</span>
+                                                )}
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center space-x-3">
+                                            <div className="text-right">
+                                              <p className="text-lg font-black text-indigo-700">{match.totalScore}</p>
+                                              <p className="text-[10px] text-gray-400">/ 100 pts</p>
+                                            </div>
+                                            {userProfile.role === 'admin' && (
+                                              <motion.button
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={async () => {
+                                                  await addDoc(collection(db, 'tasks'), {
+                                                    emergencyId: emergency.id,
+                                                    assignedVolunteerUid: match.volunteerId,
+                                                    status: 'open',
+                                                    createdAt: Timestamp.now(),
+                                                    matchScore: match.totalScore,
+                                                  });
+                                                  await updateDoc(doc(db, 'emergencies', emergency.id), {
+                                                    status: 'assigned',
+                                                    assignedVolunteerUid: match.volunteerId,
+                                                  });
+                                                  setShowSmartMatch(null);
+                                                }}
+                                                className="px-3 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg hover:bg-indigo-700 transition-colors"
+                                              >
+                                                Assign
+                                              </motion.button>
+                                            )}
+                                          </div>
+                                        </motion.div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       )}
                     </motion.div>
