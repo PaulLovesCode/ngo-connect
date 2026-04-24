@@ -10,9 +10,6 @@
 **NGO Community Connect** is a modern, high-performance platform designed to bridge the gap between Non-Governmental Organizations (NGOs) and passionate volunteers. By leveraging deterministic matchmaking and AI-driven insights, the platform ensures that the right help reaches the right place at the right time.
 
 ---
-=======
-
->>>>>>> 7377c59385d5dfb818fa06b402119c2b5a7e8239
 
 ## ✨ Key Features
 
