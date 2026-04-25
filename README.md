@@ -112,11 +112,11 @@ cp .env.example .env
 ### Running the App
 
 ```bash
-# Starts both the Vite dev server and the Express backend proxy
-npm run dev
+# Starts both the frontend (localhost:3000) and the backend (localhost:5000) simultaneously
+npm run dev:all
 ```
 
-Open **http://localhost:5173** in your browser.
+Open **http://localhost:3000** in your browser.
 
 > **Note:** The matchmaking backend runs on `localhost:5000`. The app degrades gracefully — the "Engine Offline" indicator appears in the header if it cannot be reached, and client-side fallback matching is used instead.
 
