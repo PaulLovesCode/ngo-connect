@@ -1,5 +1,4 @@
 
-=======
 
 
 # NGO Community Connect 🤝
@@ -17,7 +16,7 @@
 
 
 ## ✨ Feature Overview
-=======
+
 
 
 ### 🆕 Latest Additions (April 2026)
