@@ -491,7 +491,7 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
                             <button
                               onClick={() => {
                                 setShowManualEntryModal(true);
-                                setManualData({ description: '', location: '', urgency: 'medium', skills: '' });
+                                setManualData({ description: '', location: '', urgency: 'medium', skills: '', donationUpiLink: '', donationQrCodeUrl: '', bankName: '', ifscCode: '', accountNumber: '', accountHolderName: '' });
                               }}
                               className="w-full py-2.5 px-4 bg-white text-emerald-600 text-sm border border-emerald-200 rounded-xl font-medium hover:bg-emerald-50 transition-colors flex items-center justify-center"
                             >
@@ -1159,17 +1159,18 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
                           <p className="mt-1 text-[10px] text-gray-400 uppercase tracking-wide">Comma separated</p>
                         </div>
 
-                        {/* Donation / Crowdfunding Section */}
-                        <div className="pt-4 border-t border-gray-200">
-                          <h4 className="text-xs font-bold text-gray-700 uppercase tracking-tight mb-3 flex items-center">
+                        {/* Donation / Crowdfunding Section — collapsible */}
+                        <details className="pt-4 border-t border-gray-200 group">
+                          <summary className="text-xs font-bold text-gray-700 uppercase tracking-tight mb-3 flex items-center cursor-pointer select-none list-none">
                             <HandHeart size={14} className="mr-1.5 text-amber-600" />
                             Donation / Crowdfunding (Optional)
-                          </h4>
-                          <div className="space-y-3">
+                            <ChevronRight size={14} className="ml-auto text-gray-400 transition-transform group-open:rotate-90" />
+                          </summary>
+                          <div className="space-y-3 mt-3">
                             <div>
                               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-tight mb-1">UPI / Google Pay Link</label>
                               <input
-                                type="url"
+                                type="text"
                                 placeholder="e.g. upi://pay?pa=name@upi"
                                 value={manualData.donationUpiLink}
                                 onChange={(e) => setManualData({ ...manualData, donationUpiLink: e.target.value })}
@@ -1179,7 +1180,7 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
                             <div>
                               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-tight mb-1">QR Code Image URL</label>
                               <input
-                                type="url"
+                                type="text"
                                 placeholder="Link to QR code image"
                                 value={manualData.donationQrCodeUrl}
                                 onChange={(e) => setManualData({ ...manualData, donationQrCodeUrl: e.target.value })}
@@ -1231,7 +1232,7 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
                               </div>
                             </div>
                           </div>
-                        </div>
+                        </details>
                       </div>
 
                       <div className="flex flex-col">
@@ -1252,12 +1253,14 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
 
                   <div className="p-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end space-x-3 shrink-0">
                     <button
+                      type="button"
                       onClick={() => setShowManualEntryModal(false)}
                       className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
+                      type="button"
                       onClick={async () => {
                         if (!manualData.description.trim() || !manualData.location.trim()) {
                           alert("Please provide both a description and a location.");
