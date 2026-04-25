@@ -151,5 +151,27 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isAuthenticated() && isValidFeedback(request.resource.data);
     }
+
+    // ===============================================================
+    // Community Chat
+    // ===============================================================
+    // Collection: communityChat
+    // Document ID: {messageId}
+    // Fields:
+    //   - senderUid: string (required)
+    //   - senderName: string (required)
+    //   - senderPhoto: string (optional)
+    //   - text: string (required)
+    //   - imageUrl: string (optional)
+    //   - fileName: string (optional)
+    //   - createdAt: timestamp (required)
+
+    match /communityChat/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.senderUid == request.auth.uid &&
+        request.resource.data.senderName is string &&
+        request.resource.data.createdAt is timestamp;
+    }
   }
 }

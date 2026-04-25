@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, useSpring, useMotionValueEvent, Variants, AnimatePresence, useInView } from 'motion/react';
 import { ArrowRight, Heart, Users, Shield, Globe, ChevronDown, CheckCircle2, Sparkles, Zap, ArrowUpRight } from 'lucide-react';
 import { ASSETS } from '../constants/assets';
+import ShapeGrid from './ShapeGrid';
 
 interface LandingPageProps {
   onEnter: () => void;
@@ -15,7 +16,7 @@ function AnimatedCounter({ value, suffix: externalSuffix = '' }: { value: string
 
   useEffect(() => {
     if (!isInView) return;
-    
+
     // Match prefix, number (with decimals/commas), and suffix
     const match = value.match(/^([^0-9.]*)([0-9.,]+)(.*)$/);
     if (!match) {
@@ -27,7 +28,7 @@ function AnimatedCounter({ value, suffix: externalSuffix = '' }: { value: string
     const rawNumber = match[2];
     const internalSuffix = match[3];
     const combinedSuffix = internalSuffix + externalSuffix;
-    
+
     const target = parseFloat(rawNumber.replace(/,/g, ''));
     if (isNaN(target)) {
       setDisplayVal(value + externalSuffix);
@@ -189,53 +190,35 @@ export function LandingPage({ onEnter }: LandingPageProps) {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${navScrolled
-          ? 'bg-white/90 backdrop-blur-xl shadow-sm shadow-black/5 border-b border-gray-100'
-          : 'bg-transparent'
-          }`}
+        className="fixed top-0 left-0 right-0 z-50 pointer-events-none"
       >
-        <div className="max-w-7xl mx-auto px-8 md:px-16 h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-8 md:px-16 h-24 flex items-center justify-between">
           <motion.div
-            className="flex items-center space-x-2"
+            className="flex items-center space-x-2 bg-white/80 backdrop-blur-xl border border-gray-200/50 rounded-full px-5 py-2 shadow-sm shadow-black/5 pointer-events-auto"
             whileHover={{ scale: 1.02 }}
           >
             <span className="text-2xl font-black tracking-tighter text-gray-900">NGO</span>
             <span className="text-2xl font-black tracking-tighter text-[#FF6321]">CONNECT</span>
           </motion.div>
 
-          <div className="hidden md:flex items-center space-x-10">
-            {['Impact', 'How it Works', 'Stories'].map((item, i) => (
-              <motion.a
-                key={item}
-                href={`#${item.toLowerCase().replace(/ /g, '-')}`}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 + i * 0.1 }}
-                className="text-sm font-semibold text-gray-500 hover:text-[#FF6321] transition-colors relative group"
-              >
-                {item}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#FF6321] rounded-full transition-all duration-300 group-hover:w-full" />
-              </motion.a>
-            ))}
-          </div>
-
           <motion.div
-            className="flex items-center space-x-4"
+            className="flex items-center bg-white/80 backdrop-blur-xl border border-gray-200/50 rounded-full p-1.5 shadow-sm shadow-black/5 pointer-events-auto"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
           >
             <MagneticButton
-              onClick={onEnter}
-              className="text-sm font-semibold text-gray-700 hover:text-[#FF6321] transition-colors px-4 py-2"
+              onClick={() => document.getElementById('impact')?.scrollIntoView({ behavior: 'smooth' })}
+              className="group flex items-center text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors px-6 py-2.5 rounded-full"
             >
-              Log In
+              Impact
+              <ArrowUpRight className="ml-1.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" size={16} />
             </MagneticButton>
             <MagneticButton
               onClick={onEnter}
-              className="text-sm font-bold text-white bg-[#FF6321] hover:bg-[#e0551a] px-6 py-2.5 rounded-full transition-all shadow-lg shadow-[#FF6321]/20"
+              className="text-sm font-bold text-white bg-gray-900 hover:bg-[#FF6321] px-7 py-2.5 rounded-full transition-all shadow-md shadow-gray-900/10"
             >
-              Join Movement
+              Log In
             </MagneticButton>
           </motion.div>
         </div>
@@ -243,6 +226,19 @@ export function LandingPage({ onEnter }: LandingPageProps) {
 
       {/* ═══ Hero Section ═══ */}
       <section ref={heroRef} className="relative h-screen flex flex-col items-center justify-center px-8 md:px-16 text-center pt-20 overflow-hidden">
+        {/* Dynamic Grid Pattern Background */}
+        <div className="absolute inset-0 z-0 opacity-40 md:opacity-100">
+          <ShapeGrid
+            speed={0.5}
+            squareSize={50}
+            direction="diagonal"
+            borderColor="#e2d3c8"
+            hoverFillColor="#e9e5d9"
+            shape="square"
+            hoverTrailAmount={0}
+          />
+        </div>
+
         {/* Floating Background Shapes — parallax values from top-level hooks */}
         <motion.div
           style={{ y: floatShape1Y }}
@@ -325,21 +321,6 @@ export function LandingPage({ onEnter }: LandingPageProps) {
           </motion.div>
         </motion.div>
 
-        {/* Scroll Indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.8, duration: 1 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-400"
-        >
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] mb-3">Scroll to explore</span>
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <ChevronDown size={20} strokeWidth={2.5} />
-          </motion.div>
-        </motion.div>
       </section>
 
       {/* ═══ Impact Section ═══ */}
@@ -435,9 +416,8 @@ export function LandingPage({ onEnter }: LandingPageProps) {
           />
 
           {/* Accent glow */}
-          <div className={`absolute w-[500px] h-[500px] rounded-full blur-[160px] ${
-            i % 2 === 0 ? 'bg-[#FF6321]/[0.06] top-1/4 left-1/4' : 'bg-[#FF6321]/[0.04] bottom-1/4 right-1/4'
-          }`} />
+          <div className={`absolute w-[500px] h-[500px] rounded-full blur-[160px] ${i % 2 === 0 ? 'bg-[#FF6321]/[0.06] top-1/4 left-1/4' : 'bg-[#FF6321]/[0.04] bottom-1/4 right-1/4'
+            }`} />
 
           {/* Divider line between panels */}
           {i > 0 && (

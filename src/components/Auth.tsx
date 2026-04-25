@@ -9,11 +9,11 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Volunteer } from '../types';
-import { Eye, EyeOff, Github, Chrome, Facebook, Apple } from 'lucide-react';
+import { Eye, EyeOff, Github, Chrome, Facebook, Apple, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect } from 'react';
 
-export default function Auth({ onAuthChange }: { onAuthChange: (user: any) => void }) {
+export default function Auth({ onAuthChange, onBack }: { onAuthChange: (user: any) => void, onBack?: () => void }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -127,26 +127,36 @@ export default function Auth({ onAuthChange }: { onAuthChange: (user: any) => vo
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#f5f5f0] flex items-center justify-center p-0 sm:p-4 md:p-8">
-      <div className="w-full max-w-[1200px] min-h-[700px] bg-[#f5f5f0] rounded-[40px] shadow-2xl flex flex-col md:flex-row overflow-hidden border border-gray-200/50">
+    <div className="h-[100dvh] w-full bg-[#f5f5f0] p-4 sm:p-6 md:p-8">
+      <div className="w-full h-full bg-[#f5f5f0] rounded-[30px] sm:rounded-[40px] shadow-2xl flex flex-col md:flex-row overflow-hidden border border-gray-200/50">
 
         {/* Left Side: Auth Form */}
-        <div className="flex-1 p-8 md:p-16 flex flex-col justify-center">
+        <div className="relative flex-1 p-6 md:p-10 flex flex-col justify-center overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="absolute top-6 left-6 flex items-center text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium z-10"
+            >
+              <ArrowLeft size={18} className="mr-2" />
+              Back
+            </button>
+          )}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="max-w-[400px] mx-auto w-full"
           >
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 tracking-tight">
               {isLogin ? 'Welcome back!' : 'Create account'}
             </h1>
-            <p className="text-gray-500 mb-10 text-sm md:text-base leading-relaxed">
+            <p className="text-gray-500 mb-6 text-sm leading-relaxed">
               {isLogin
                 ? "Simplify your workflow and boost your productivity with NGO Connect. Get started for free."
                 : "Join our community of volunteers and make a real difference in people's lives today."}
             </p>
 
-            <form onSubmit={handleAuth} className="space-y-5">
+            <form onSubmit={handleAuth} className="space-y-4">
               {error && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -163,7 +173,7 @@ export default function Auth({ onAuthChange }: { onAuthChange: (user: any) => vo
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="space-y-5 overflow-hidden"
+                    className="space-y-4 overflow-hidden"
                   >
                     <div className="relative">
                       <input
@@ -172,7 +182,7 @@ export default function Auth({ onAuthChange }: { onAuthChange: (user: any) => vo
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Full Name"
-                        className="w-full px-6 py-4 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6321]/20 focus:border-[#FF6321] transition-all placeholder:text-gray-400"
+                        className="w-full px-5 py-3 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6321]/20 focus:border-[#FF6321] transition-all placeholder:text-gray-400"
                       />
                     </div>
                     <div className="relative">
@@ -182,7 +192,7 @@ export default function Auth({ onAuthChange }: { onAuthChange: (user: any) => vo
                         value={skills}
                         onChange={(e) => setSkills(e.target.value)}
                         placeholder="Skills (e.g. Medicine, First Aid)"
-                        className="w-full px-6 py-4 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6321]/20 focus:border-[#FF6321] transition-all placeholder:text-gray-400"
+                        className="w-full px-5 py-3 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6321]/20 focus:border-[#FF6321] transition-all placeholder:text-gray-400"
                       />
                     </div>
                   </motion.div>
@@ -196,7 +206,7 @@ export default function Auth({ onAuthChange }: { onAuthChange: (user: any) => vo
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email Address"
-                  className="w-full px-6 py-4 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6321]/20 focus:border-[#FF6321] transition-all placeholder:text-gray-400"
+                  className="w-full px-5 py-3 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6321]/20 focus:border-[#FF6321] transition-all placeholder:text-gray-400"
                 />
               </div>
 
@@ -207,7 +217,7 @@ export default function Auth({ onAuthChange }: { onAuthChange: (user: any) => vo
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
-                  className="w-full px-6 py-4 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6321]/20 focus:border-[#FF6321] transition-all placeholder:text-gray-400"
+                  className="w-full px-5 py-3 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6321]/20 focus:border-[#FF6321] transition-all placeholder:text-gray-400"
                 />
                 <button
                   type="button"
@@ -229,12 +239,12 @@ export default function Auth({ onAuthChange }: { onAuthChange: (user: any) => vo
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-black text-white rounded-full font-bold text-sm hover:bg-[#FF6321] transition-all shadow-lg shadow-black/10 active:scale-[0.98] disabled:opacity-50"
+                className="w-full py-3 bg-black text-white rounded-full font-bold text-sm hover:bg-[#FF6321] transition-all shadow-lg shadow-black/10 active:scale-[0.98] disabled:opacity-50"
               >
                 {loading ? 'Processing...' : isLogin ? 'Login' : 'Create Account'}
               </button>
 
-              <div className="relative py-4">
+              <div className="relative py-3">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200/50"></div>
                 </div>
@@ -243,29 +253,29 @@ export default function Auth({ onAuthChange }: { onAuthChange: (user: any) => vo
                 </div>
               </div>
 
-              <div className="flex justify-center space-x-4">
+              <div className="flex justify-center space-x-3">
                 <button
                   type="button"
                   onClick={handleGoogleSignIn}
-                  className="w-12 h-12 flex items-center justify-center rounded-full border border-gray-100 hover:bg-gray-50 transition-all active:scale-95"
+                  className="w-10 h-10 flex items-center justify-center rounded-full border border-gray-100 hover:bg-gray-50 transition-all active:scale-95"
                 >
-                  <Chrome size={20} className="text-gray-900" />
+                  <Chrome size={18} className="text-gray-900" />
                 </button>
                 <button
                   type="button"
-                  className="w-12 h-12 flex items-center justify-center rounded-full border border-gray-100 hover:bg-gray-50 transition-all active:scale-95"
+                  className="w-10 h-10 flex items-center justify-center rounded-full border border-gray-100 hover:bg-gray-50 transition-all active:scale-95"
                 >
-                  <Apple size={20} className="text-gray-900" />
+                  <Apple size={18} className="text-gray-900" />
                 </button>
                 <button
                   type="button"
-                  className="w-12 h-12 flex items-center justify-center rounded-full border border-gray-100 hover:bg-gray-50 transition-all active:scale-95"
+                  className="w-10 h-10 flex items-center justify-center rounded-full border border-gray-100 hover:bg-gray-50 transition-all active:scale-95"
                 >
-                  <Facebook size={20} className="text-gray-900" />
+                  <Facebook size={18} className="text-gray-900" />
                 </button>
               </div>
 
-              <div className="pt-6 text-center">
+              <div className="pt-4 text-center">
                 <p className="text-sm text-gray-500">
                   {isLogin ? "Not a member? " : "Already have an account? "}
                   <button
@@ -282,15 +292,15 @@ export default function Auth({ onAuthChange }: { onAuthChange: (user: any) => vo
         </div>
 
         {/* Right Side: Immersive Visuals */}
-        <div className="hidden md:flex flex-1 bg-[#e0731f] p-12 flex-col items-center justify-center relative overflow-hidden">
+        <div className="hidden md:flex flex-1 bg-[#e0731f] p-8 flex-col items-center justify-center relative overflow-hidden">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="relative w-full max-w-[500px]"
+            className="relative w-full max-w-[400px]"
           >
             {/* Main Illustration Carousel */}
-            <div className="relative z-10 aspect-square rounded-[40px] overflow-hidden shadow-2xl border-4 border-white/20">
+            <div className="relative z-10 aspect-square rounded-3xl overflow-hidden shadow-2xl border-4 border-white/20">
               <AnimatePresence mode="wait">
                 <motion.img
                   key={currentImageIndex}
@@ -310,8 +320,8 @@ export default function Auth({ onAuthChange }: { onAuthChange: (user: any) => vo
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] border-2 border-dashed border-white/20 rounded-full opacity-20 animate-[spin_60s_linear_infinite]"></div>
           </motion.div>
 
-          <div className="mt-12 text-center max-w-[400px] relative z-10">
-            <h2 className="text-xl md:text-2xl font-bold text-white mb-4 leading-snug">
+          <div className="mt-8 text-center max-w-[360px] relative z-10">
+            <h2 className="text-lg md:text-xl font-bold text-white mb-3 leading-snug">
               We are Volunteers helping people in need and in emergency. Liked our work? Or wanna become a Volunteer? Sign in now.
             </h2>
             <div className="flex justify-center space-x-2">

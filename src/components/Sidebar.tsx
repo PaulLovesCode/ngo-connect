@@ -8,10 +8,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Heart,
-  MessageSquare
+  MessageSquare,
+  Calendar,
+  CheckCircle
 } from 'lucide-react';
 import { auth } from '../lib/firebase';
-import { Volunteer } from '../types';
+import { Volunteer, Task, Emergency } from '../types';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -22,6 +24,8 @@ interface SidebarProps {
   onFeedbackClick: () => void;
   currentView: 'dashboard' | 'profile' | 'settings';
   onViewChange: (view: 'dashboard' | 'profile' | 'settings') => void;
+  onArchiveClick: () => void;
+  onAssignmentsClick: () => void;
 }
 
 export function Sidebar({ 
@@ -30,11 +34,15 @@ export function Sidebar({
   setIsCollapsed,
   onFeedbackClick,
   currentView,
-  onViewChange
+  onViewChange,
+  onArchiveClick,
+  onAssignmentsClick
 }: SidebarProps) {
   
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', active: currentView === 'dashboard', onClick: () => onViewChange('dashboard') },
+    { icon: Calendar, label: 'Emergency Archive', onClick: onArchiveClick },
+    { icon: CheckCircle, label: 'My Assignments', onClick: onAssignmentsClick },
     { icon: User, label: 'Profile', active: currentView === 'profile', onClick: () => onViewChange('profile') },
     { icon: BookOpen, label: 'Resources' },
     { icon: MessageSquare, label: 'Feedback', onClick: onFeedbackClick },
@@ -47,27 +55,27 @@ export function Sidebar({
   return (
     <motion.aside 
       initial={false}
-      animate={{ width: isCollapsed ? 80 : 256 }}
+      animate={{ width: isCollapsed ? 72 : 240 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       className="fixed left-0 top-0 h-screen z-30 flex flex-col border-r bg-white border-gray-100 overflow-hidden shadow-sm"
     >
       {/* Logo Section */}
-      <div className="p-6 relative flex items-center min-h-[88px]">
+      <div className="p-5 relative flex items-center min-h-[72px]">
         <div className={cn(
           "flex items-center space-x-3 transition-opacity duration-300",
           isCollapsed ? "mx-auto" : "opacity-100"
         )}>
           <motion.div 
             layout
-            className="bg-emerald-600 p-2.5 rounded-xl text-white shadow-lg shadow-emerald-200"
+            className="bg-emerald-600 p-2 rounded-xl text-white shadow-lg shadow-emerald-200"
           >
-            <Heart size={20} fill="currentColor" />
+            <Heart size={18} fill="currentColor" />
           </motion.div>
           {!isCollapsed && (
             <motion.span 
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="font-bold text-xl text-emerald-900 whitespace-nowrap"
+              className="font-bold text-lg text-emerald-900 whitespace-nowrap"
             >
               NGO Connect
             </motion.span>
@@ -78,14 +86,14 @@ export function Sidebar({
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-10 bg-white border border-gray-200 rounded-full p-1.5 shadow-md hover:border-emerald-200 hover:text-emerald-600 transition-colors z-40"
+          className="absolute -right-3 top-6 bg-white border border-gray-200 rounded-full p-1 shadow-md hover:border-emerald-200 hover:text-emerald-600 transition-colors z-40"
         >
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </motion.button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-6">
+      <nav className="flex-1 px-3 py-5 space-y-5 overflow-y-auto overflow-x-hidden no-scrollbar">
         <div>
           <AnimatePresence mode="wait">
             {!isCollapsed && (
@@ -107,20 +115,20 @@ export function Sidebar({
                 whileTap={{ scale: 0.98 }}
                 onClick={item.onClick}
                 className={cn(
-                  "w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors group relative",
+                  "w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors group relative",
                   item.active 
                     ? "bg-emerald-50 text-emerald-600 shadow-sm shadow-emerald-100/50" 
                     : "text-gray-500 hover:bg-emerald-50/40 hover:text-gray-900"
                 )}
               >
-                <div className={cn("flex-shrink-0 flex items-center justify-center w-6 h-6", isCollapsed && "mx-auto")}>
-                  <item.icon size={20} />
+                <div className={cn("flex-shrink-0 flex items-center justify-center w-5 h-5", isCollapsed && "mx-auto")}>
+                  <item.icon size={18} />
                 </div>
                 {!isCollapsed && (
                   <motion.span 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="font-medium text-sm whitespace-nowrap"
+                    className="font-medium text-[13px] whitespace-nowrap"
                   >
                     {item.label}
                   </motion.span>
@@ -136,7 +144,7 @@ export function Sidebar({
           </div>
         </div>
 
-        <div className="pt-6 border-t border-gray-100">
+        <div className="pt-5 border-t border-gray-100">
           <AnimatePresence mode="wait">
             {!isCollapsed && (
               <motion.p 
@@ -157,20 +165,20 @@ export function Sidebar({
                 whileTap={{ scale: 0.98 }}
                 onClick={item.onClick}
                 className={cn(
-                  "w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors group relative",
+                  "w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors group relative",
                   item.active 
                     ? "bg-emerald-50 text-emerald-600 shadow-sm shadow-emerald-100/50" 
                     : "text-gray-500 hover:bg-emerald-50/40 hover:text-gray-900"
                 )}
               >
-                <div className={cn("flex-shrink-0 flex items-center justify-center w-6 h-6", isCollapsed && "mx-auto")}>
-                  <item.icon size={20} />
+                <div className={cn("flex-shrink-0 flex items-center justify-center w-5 h-5", isCollapsed && "mx-auto")}>
+                  <item.icon size={18} />
                 </div>
                 {!isCollapsed && (
                   <motion.span 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="font-medium text-sm whitespace-nowrap"
+                    className="font-medium text-[13px] whitespace-nowrap"
                   >
                     {item.label}
                   </motion.span>
@@ -188,11 +196,11 @@ export function Sidebar({
       </nav>
 
       {/* User Section */}
-      <div className="p-4 border-t border-gray-100 bg-gray-50/30">
+      <div className="p-3 border-t border-gray-100 bg-gray-50/30">
         <motion.div 
           layout
           className={cn(
-            "flex items-center space-x-3 p-2.5 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden",
+            "flex items-center space-x-2 p-2 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden",
             isCollapsed && "justify-center"
           )}
         >
@@ -200,7 +208,7 @@ export function Sidebar({
             layout
             src={userProfile.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile.name}`} 
             alt={userProfile.name}
-            className="w-10 h-10 rounded-xl bg-emerald-100 object-cover flex-shrink-0"
+            className="w-8 h-8 rounded-xl bg-emerald-100 object-cover flex-shrink-0"
           />
           {!isCollapsed && (
             <motion.div 
@@ -208,7 +216,7 @@ export function Sidebar({
               animate={{ opacity: 1 }}
               className="flex-1 min-w-0"
             >
-              <p className="text-sm font-bold text-gray-900 truncate">{userProfile.name}</p>
+              <p className="text-[13px] font-bold text-gray-900 truncate">{userProfile.name}</p>
               <p className="text-[10px] text-gray-500 uppercase font-bold tracking-tight">{userProfile.role}</p>
             </motion.div>
           )}
@@ -219,14 +227,14 @@ export function Sidebar({
           whileTap={{ scale: 0.98 }}
           onClick={() => auth.signOut()}
           className={cn(
-            "w-full mt-4 flex items-center space-x-3 px-3 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-colors group",
+            "w-full mt-3 flex items-center space-x-3 px-3 py-2.5 rounded-xl text-red-500 hover:bg-red-50 transition-colors group",
             isCollapsed && "justify-center"
           )}
         >
           <div className="flex-shrink-0">
-            <LogOut size={20} />
+            <LogOut size={18} />
           </div>
-          {!isCollapsed && <span className="font-medium text-sm">Log out</span>}
+          {!isCollapsed && <span className="font-medium text-[13px]">Log out</span>}
         </motion.button>
       </div>
     </motion.aside>

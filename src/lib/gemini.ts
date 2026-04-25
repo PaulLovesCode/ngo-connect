@@ -26,7 +26,7 @@ export async function analyzeEmergency(text: string): Promise<EmergencyAnalysis>
     
     Provide the output in JSON format with:
     - description: a concise summary
-    - location: extracted location
+    - location: extracted location (IMPORTANT: Format the location starting with the PIN code followed by the address if available, e.g. "700125, Kolkata" or similar, for better geocoding)
     - urgency: one of [low, medium, high, critical]
     - requiredSkills: list of skills needed (e.g., Medicine, First Aid, Logistics, Construction, Teaching, Counseling)`,
     config: {
@@ -37,9 +37,9 @@ export async function analyzeEmergency(text: string): Promise<EmergencyAnalysis>
           description: { type: Type.STRING },
           location: { type: Type.STRING },
           urgency: { type: Type.STRING, enum: ["low", "medium", "high", "critical"] },
-          requiredSkills: { 
-            type: Type.ARRAY, 
-            items: { type: Type.STRING } 
+          requiredSkills: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
           }
         },
         required: ["description", "location", "urgency", "requiredSkills"]
@@ -63,3 +63,31 @@ export async function ocrImage(base64Image: string, mimeType: string): Promise<s
 
   return response.text || "";
 }
+
+export async function generateDetailedNarrative(
+  description: string,
+  location: string,
+  urgency: string,
+  requiredSkills: string[]
+): Promise<string> {
+  const response = await ai.models.generateContent({
+    model: geminiModel,
+    contents: `You are an NGO emergency report writer. Based on the following brief emergency report, write a detailed, believable narrative (3-5 paragraphs) describing what happened, the current situation on the ground, and what kind of help is urgently needed.
+
+Brief Report: "${description}"
+Location: ${location}
+Urgency Level: ${urgency}
+Skills Needed: ${requiredSkills.join(', ')}
+
+Requirements:
+- Write in a factual, compassionate tone similar to real NGO field reports
+- Include realistic details about the affected people and conditions
+- Describe the specific help required and how volunteers can contribute
+- Keep it concise but informative (under 300 words)
+- Do NOT make up specific names of real people or organizations
+- Write as a third-person field report`,
+  });
+
+  return response.text || description;
+}
+

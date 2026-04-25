@@ -30,6 +30,15 @@ export interface Emergency {
   requiredSkills: string[];
   createdAt: Timestamp;
   processedByAi?: boolean;
+  // Donation / Crowdfunding fields
+  donationUpiLink?: string;
+  donationQrCodeUrl?: string;
+  bankName?: string;
+  ifscCode?: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+  // AI-generated detailed narrative (cached after first generation)
+  detailedNarrative?: string;
 }
 
 export interface Task {

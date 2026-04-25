@@ -110,7 +110,7 @@ export default function App() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
-            <Auth onAuthChange={setUser} />
+            <Auth onAuthChange={setUser} onBack={() => setShowAuth(false)} />
           </motion.div>
         ) : (
           <motion.div

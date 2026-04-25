@@ -1,29 +1,37 @@
-# Dependencies
+# ─── Dependencies ───────────────────────────────────────────────────────────
 node_modules/
 .pnp
 .pnp.js
 
-# Build outputs
+# ─── Build Outputs ───────────────────────────────────────────────────────────
 dist/
 dist-ssr/
 build/
 *.tsbuildinfo
 
-# Debug logs
+# ─── Environment Variables (NEVER commit real secrets) ───────────────────────
+.env
+.env.local
+.env.*.local
+# Allow the example template to be committed
+!.env.example
+
+# ─── Debug & Runtime Logs ────────────────────────────────────────────────────
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 firebase-debug.log*
+ui-debug.log*
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-!.env.example
+# ─── Firebase ────────────────────────────────────────────────────────────────
+.firebase/
+serviceAccountKey.json
+# Firebase applet config can contain project secrets
+firebase-applet-config.json
 
-# IDEs and Editors
+# ─── IDEs & Editors ──────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.suo
@@ -32,10 +40,14 @@ firebase-debug.log*
 *.sln
 *.sw?
 
-# Firebase
-.firebase/
-serviceAccountKey.json
-
-# System files
+# ─── Operating System ────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ─── TypeScript ──────────────────────────────────────────────────────────────
+*.d.ts.map
+
+# ─── Miscellaneous ───────────────────────────────────────────────────────────
+.cache/
+.temp/
