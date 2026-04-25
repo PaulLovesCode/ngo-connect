@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/api/match/(.*)", "destination": "/api/backend" },
+    { "source": "/api/match", "destination": "/api/backend" },
+    { "source": "/api/health(.*)", "destination": "/api/backend" },
+    { "source": "/api/auth/(.*)", "destination": "/api/auth" },
+    { "source": "/auth/callback(.*)", "destination": "/api/auth" }
+  ]
+}

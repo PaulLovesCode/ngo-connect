@@ -3,7 +3,7 @@
  * Communicates with the Node.js backend at localhost:5000.
  */
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
 
 interface MatchBreakdown {
   skill: {

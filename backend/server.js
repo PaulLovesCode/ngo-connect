@@ -91,13 +91,17 @@ app.use((err, req, res, next) => {
 
 // ─── Start Server ──────────────────────────────────────────────────────
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('');
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('  NGO Connect — Matchmaking Backend');
-  console.log(`  🚀 Server running on http://localhost:${PORT}`);
-  console.log(`  📋 Health check:     http://localhost:${PORT}/api/health`);
-  console.log(`  🎯 Match endpoint:   POST http://localhost:${PORT}/api/match/find`);
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('');
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('  NGO Connect — Matchmaking Backend');
+    console.log(`  🚀 Server running on http://localhost:${PORT}`);
+    console.log(`  📋 Health check:     http://localhost:${PORT}/api/health`);
+    console.log(`  🎯 Match endpoint:   POST http://localhost:${PORT}/api/match/find`);
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('');
+  });
+}
+
+export default app;
