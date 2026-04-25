@@ -1,5 +1,4 @@
 
-=======
 
 
 # NGO Community Connect 🤝
@@ -17,7 +16,7 @@
 
 
 ## ✨ Feature Overview
-=======
+
 
 
 ### 🆕 Latest Additions (April 2026)
@@ -116,7 +115,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Open **http://localhost:5173** in your browser.
+Open **http://localhost:3000** in your browser.
 
 > **Note:** The matchmaking backend runs on `localhost:5000`. The app degrades gracefully — the "Engine Offline" indicator appears in the header if it cannot be reached, and client-side fallback matching is used instead.
 
