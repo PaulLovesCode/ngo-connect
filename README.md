@@ -1,7 +1,7 @@
-<<<<<<< HEAD
+
 =======
 
->>>>>>> f14b4f1e0c1e732c77b554be2fbb0e78ddd70cac
+
 # NGO Community Connect 🤝
 
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
@@ -14,11 +14,11 @@
 **NGO Community Connect** is a modern, high-performance platform that bridges the gap between Non-Governmental Organizations (NGOs) and passionate volunteers. Powered by deterministic skill matchmaking, real-time AI assistance, and a premium UI, the platform ensures that the right help reaches the right place — fast.
 
 ---
-<<<<<<< HEAD
+
 
 ## ✨ Feature Overview
 =======
->>>>>>> f14b4f1e0c1e732c77b554be2fbb0e78ddd70cac
+
 
 ### 🆕 Latest Additions (April 2026)
 
