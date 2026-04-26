@@ -1,8 +1,8 @@
 import { Timestamp } from 'firebase/firestore';
 
 export type Urgency = 'low' | 'medium' | 'high' | 'critical';
-export type EmergencyStatus = 'pending' | 'assigned' | 'resolved';
-export type TaskStatus = 'open' | 'in-progress' | 'completed';
+export type EmergencyStatus = 'pending' | 'assigned' | 'pending_review' | 'resolved';
+export type TaskStatus = 'open' | 'in-progress' | 'pending_review' | 'completed';
 export type UserRole = 'volunteer' | 'admin';
 
 export interface Volunteer {
@@ -39,6 +39,8 @@ export interface Emergency {
   accountHolderName?: string;
   // AI-generated detailed narrative (cached after first generation)
   detailedNarrative?: string;
+  // Proof of completion
+  proofImageUrl?: string;
 }
 
 export interface Task {

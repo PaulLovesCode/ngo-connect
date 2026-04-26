@@ -7,7 +7,10 @@ node_modules/
 dist/
 dist-ssr/
 build/
+out/
 *.tsbuildinfo
+coverage/
+.vercel/
 
 # ─── Environment Variables (NEVER commit real secrets) ───────────────────────
 .env
@@ -24,6 +27,7 @@ yarn-error.log*
 pnpm-debug.log*
 firebase-debug.log*
 ui-debug.log*
+.eslintcache
 
 # ─── Firebase ────────────────────────────────────────────────────────────────
 .firebase/

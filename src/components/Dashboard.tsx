@@ -89,6 +89,7 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
   const [selectedEmergency, setSelectedEmergency] = useState<Emergency | null>(null);
   const [narrativeCache, setNarrativeCache] = useState<Record<string, string>>({});
   const [narrativeLoading, setNarrativeLoading] = useState(false);
+  const [uploadingProofFor, setUploadingProofFor] = useState<string | null>(null);
   const lastSeenRef = React.useRef<Date>(new Date());
 
   // Track unread community chat messages
@@ -133,7 +134,7 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
     const tq = query(collection(db, 'tasks'), where('assignedVolunteerUid', '==', userProfile.uid));
     const tUnsubscribe = onSnapshot(tq, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
-      setMyTasks(data);
+      setMyTasks(data.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
     });
 
     // Fetch all volunteers for matchmaking
@@ -184,6 +185,84 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
       console.error(err);
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        };
+        img.onerror = error => reject(error);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleUploadProof = async (taskId: string, emergencyId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingProofFor(taskId);
+    try {
+      const base64 = await compressImage(file);
+      
+      await updateDoc(doc(db, 'tasks', taskId), {
+        status: 'pending_review'
+      });
+      await updateDoc(doc(db, 'emergencies', emergencyId), {
+        status: 'pending_review',
+        proofImageUrl: base64
+      });
+    } catch (err) {
+      console.error("Upload proof failed:", err);
+      alert("Failed to process or upload image. Please try again.");
+    } finally {
+      setUploadingProofFor(null);
+    }
+  };
+
+  const handleApproveResolution = async (emergency: Emergency) => {
+    try {
+      const taskSnap = await getDocs(query(collection(db, 'tasks'), where('emergencyId', '==', emergency.id), where('status', '==', 'pending_review')));
+      if (!taskSnap.empty) {
+        await updateDoc(doc(db, 'tasks', taskSnap.docs[0].id), {
+          status: 'completed'
+        });
+      }
+      await updateDoc(doc(db, 'emergencies', emergency.id), {
+        status: 'resolved'
+      });
+    } catch (err) {
+      console.error("Approve resolution failed:", err);
     }
   };
 
@@ -393,7 +472,8 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
   };
 
   const activeEmergencies = emergencies.filter(e => e.status === 'pending');
-  const resolvedAssignedEmergencies = emergencies.filter(e => e.status !== 'pending');
+  const resolvedAssignedEmergencies = emergencies.filter(e => e.status !== 'pending' && e.status !== 'pending_review');
+  const needsReviewEmergencies = emergencies.filter(e => e.reporterUid === userProfile.uid && e.status === 'pending_review');
 
   const AVAILABLE_ITEMS_PER_PAGE = 2;
   const RESOLVED_ITEMS_PER_PAGE = 6;
@@ -472,6 +552,34 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
                   {/* Left Column: Reporting & My Tasks */}
                   <div className="lg:col-span-1">
                     <div className="sticky top-20 space-y-6">
+                      {/* Needs Review Section */}
+                      {needsReviewEmergencies.length > 0 && (
+                        <section className="bg-amber-50 rounded-2xl shadow-sm border border-amber-200 p-5">
+                          <h2 className="text-sm font-bold text-amber-900 mb-3 flex items-center">
+                            <CheckCircle className="mr-2 text-amber-600" size={16} />
+                            Action Required: Verify Proof
+                          </h2>
+                          <div className="space-y-3">
+                            {needsReviewEmergencies.map(emergency => (
+                              <div key={emergency.id} className="bg-white p-3 rounded-xl shadow-sm border border-amber-100">
+                                <p className="text-xs font-bold text-gray-900 mb-2">{emergency.description}</p>
+                                {emergency.proofImageUrl && (
+                                  <div className="relative mb-2 w-full h-32 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                                    <img src={emergency.proofImageUrl} alt="Proof" className="absolute inset-0 w-full h-full object-cover" />
+                                  </div>
+                                )}
+                                <button
+                                  onClick={() => handleApproveResolution(emergency)}
+                                  className="w-full py-2 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg hover:bg-amber-200 transition-colors shadow-sm"
+                                >
+                                  Approve & Mark Resolved
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+
                       {/* Report Section */}
                       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                         <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center">
@@ -988,13 +1096,29 @@ export default function Dashboard({ userProfile }: { userProfile: Volunteer }) {
                               <MapPin size={14} className="mr-1.5 text-emerald-500" />
                               {emergency?.location}
                             </div>
-                            {task.status !== 'completed' && (
-                              <button
-                                onClick={() => handleCompleteTask(task.id, task.emergencyId)}
-                                className="mt-4 w-full py-2 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-xl hover:bg-emerald-100 transition-colors border border-emerald-200"
-                              >
-                                Mark as Resolved
-                              </button>
+                            {task.status !== 'completed' && task.status !== 'pending_review' && (
+                              <label className="mt-4 flex items-center justify-center w-full py-2 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-xl hover:bg-emerald-100 transition-colors border border-emerald-200 cursor-pointer relative overflow-hidden">
+                                {uploadingProofFor === task.id ? (
+                                  <Loader2 className="animate-spin" size={16} />
+                                ) : (
+                                  <>
+                                    <Upload size={14} className="mr-1.5" />
+                                    Upload Proof to Complete
+                                  </>
+                                )}
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept="image/*"
+                                  onChange={(e) => handleUploadProof(task.id, task.emergencyId, e)}
+                                  disabled={uploadingProofFor === task.id}
+                                />
+                              </label>
+                            )}
+                            {task.status === 'pending_review' && (
+                              <div className="mt-4 w-full py-2 bg-blue-50 text-blue-700 text-xs font-bold rounded-xl border border-blue-200 text-center">
+                                Pending Reporter Review
+                              </div>
                             )}
                           </div>
                         );

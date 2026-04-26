@@ -96,16 +96,17 @@ service cloud.firestore {
              data.description is string && data.description.size() > 0 && data.description.size() < 2000 &&
              data.location is string && data.location.size() > 0 && data.location.size() < 500 &&
              data.urgency in ['low', 'medium', 'high', 'critical'] &&
-             data.status in ['pending', 'assigned', 'resolved'] &&
+             data.status in ['pending', 'assigned', 'pending_review', 'resolved'] &&
              data.createdAt is timestamp &&
-             (!('assignedVolunteerUid' in data) || data.assignedVolunteerUid is string);
+             (!('assignedVolunteerUid' in data) || data.assignedVolunteerUid is string) &&
+             (!('proofImageUrl' in data) || data.proofImageUrl is string);
     }
 
     function isValidTask(data) {
       return data.keys().hasAll(['emergencyId', 'assignedVolunteerUid', 'status', 'createdAt']) &&
              data.emergencyId is string &&
              data.assignedVolunteerUid is string &&
-             data.status in ['open', 'in-progress', 'completed'] &&
+             data.status in ['open', 'in-progress', 'pending_review', 'completed'] &&
              data.createdAt is timestamp;
     }
 
@@ -135,6 +136,7 @@ service cloud.firestore {
         isAdmin() || 
         (resource.data.reporterUid == request.auth.uid && isValidEmergency(request.resource.data) && request.resource.data.reporterUid == resource.data.reporterUid) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'assignedVolunteerUid']) && request.resource.data.status == 'assigned' && resource.data.status == 'pending' && request.resource.data.assignedVolunteerUid == request.auth.uid) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'proofImageUrl']) && request.resource.data.status == 'pending_review' && resource.data.assignedVolunteerUid == request.auth.uid) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'resolved' && resource.data.assignedVolunteerUid == request.auth.uid)
       );
       allow delete: if isAdmin();
@@ -143,7 +145,11 @@ service cloud.firestore {
     match /tasks/{taskId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && (isAdmin() || (request.resource.data.assignedVolunteerUid == request.auth.uid && isValidTask(request.resource.data)));
-      allow update: if isAuthenticated() && (isAdmin() || (resource.data.assignedVolunteerUid == request.auth.uid && isValidTask(request.resource.data)));
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (resource.data.assignedVolunteerUid == request.auth.uid && isValidTask(request.resource.data)) ||
+        (get(/databases/$(database)/documents/emergencies/$(resource.data.emergencyId)).data.reporterUid == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'completed')
+      );
       allow delete: if isAdmin();
     }
 
